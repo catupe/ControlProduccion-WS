@@ -33,7 +33,9 @@ $RUTA_PROYECTO_PRINCIPAL =	$argv[4];
 #usuario que deploya
 $USUARIO 				 =	$argv[5];
 #dependencias
-//@deps=@ARGV;
+for($i = 5; $i < count($argv); $i++ ){
+	$deps =	$argv[$i];
+}
 
 /*
 use lib "../../../ControlProduccion-WS/lib";
@@ -92,8 +94,9 @@ print $nombre_producto."\n";
 $version_producto;
 
 #-------------------------USUARIO-------------------------------------------
-/*-------------------
-$archivoUsuario=$ruta_proyecto_principal."/CVS/Root";
+/*-------------------*/
+//$archivoUsuario=$ruta_proyecto_principal."/CVS/Root";
+$archivoUsuario=$ruta_proyecto_principal."/version/user.info";
 $usu 	= fopen($archivoUsuario, 'r');
 $usuario="";
 if (!isset($usu)){
@@ -107,11 +110,12 @@ while (!feof($usu)) {
 	$usuario=$coincidencias[1];
 }
 fclose($usu);
---------------------*/
+/*--------------------*/
 #--------------------------------------------------------------------
 #-----------------------------TAG------------------------------------
-/*-------------------------
-$archivoTag = $ruta_proyecto_principal."/CVS/Tag";
+/*-------------------------*/
+//$archivoTag = $ruta_proyecto_principal."/CVS/Tag";
+$archivoTag = $ruta_proyecto_principal."/version/tag.info";
 $tag 	= fopen($archivoTag, 'r');
 //my $tag = IO::File->new("<".$archivoTag);
 if (!isset($tag)){
@@ -127,45 +131,48 @@ while (!feof($tag)) {
 	print $texto."\n";
 }
 fclose($tag);
---------------------------*/
+/*--------------------------*/
 preg_match('/^.+[WS|Web]_([\w\d\-]+)$/', $version_proy_principal, $coincidencias);
 #--------------------------------------------------------------------
 
 #----------------------------------DEPS----------------------------------
 
 #hash de dependencias donde la clave en el nombre del modulo y el valor la version
-my $deps={};
+//my $deps={};
 
 #registro las versiones de las dependencias
-foreach my $dep (@deps){
+foreach ($dep as $deps){
 	
 	#ruta de la dependencia
-	my $archivoTag=qq{$ruta_proyecto_principal/../$dep/CVS/Tag};
+	$archivoTag = $ruta_proyecto_principal . " /../ " . $dep . "/version/tag.info";
 	
-	$tag = IO::File->new("<".$archivoTag); # or exit "Error al abrir el archivo $archivoTag \n";
-	if (!defined($tag)){
+	//$tag = IO::File->new("<".$archivoTag); # or exit "Error al abrir el archivo $archivoTag \n";
+	$tag 	= fopen($archivoTag, 'r');
+	if (!$tag){
 		print "Error al abrir el archivo $archivoTag, no se pudo registrar el deploy\n";
-		exit 0;
+		exit;
 	}
 	
 	#$sal = IO::File->new(">>".$archivoSalida) or exit "Error al abrir el archivo $archivoSalida\n";
-	while (my $line=<$tag>){
-		$line=~s/^.//;
-		chomp($line);
+	while (!feof($tag)) {
+	//while (my $line=<$tag>){
+		//$line=~s/^.//;
+		//chomp($line);
+		$line = fread($tag, 8192);
 		
-		my $texto="\tDependencia: ".$dep."\n\tVersion: ".$line."\n";
-		my $datos={};
+		$texto = "\tDependencia: ".$dep."\n\tVersion: ".$line."\n";
+		$datos = array();
 		print $texto;
 		#agrego la dependencia al hash
-		$$datos{version}=$line;
+		$datos["version"] = $line;
 		
-		$$deps{$dep}=$datos;
+		$deps[$dep] = $datos;
 	}
-	$tag->close();
+	fclose($tag);
 }
 
 #--------------------------------------------------------------------
-
+/****************************************************************
 my $res= $control->deployar($nombre_producto,$version_producto,$proyecto_principal,$version_proy_principal,"htm",$docum,$deps,$usuario);
 if ($$res{"error"}){
 	print "Error ".$$res{codigoError}.":".$$res{mensajeError}.", no se pudo registrar el deploy\n";
@@ -211,7 +218,7 @@ sub perlpod{
 	
 	return $docum;
 }
-
+************************************************************************/
 sub getFecha{
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 	if ($min<10){
