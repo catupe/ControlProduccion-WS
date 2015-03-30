@@ -18,6 +18,8 @@
 			$this->adm_usuario 		= new AdmUsuario($ruta_configuracion, $ambiente);
 			$this->basedatos 	 	= new Database($ruta_configuracion, $ambiente);
 			
+			$this->basedatos->BeginTransaction();
+			$this->mensaje 				= Mensajes::getInstance();
 		}
 		
 		public function finalizar(){
@@ -410,4 +412,43 @@
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
 			}
 		}
+		
+		# Crea una dependencia de un proyecto hacia otro
+		#Entrada:
+		#	nombre proyecto dependiente
+		# 	version del proyecto dependiente
+		#	nombre del que depende
+		# 	version del que depende
+		public function addDependencia($nombre,$version,$nombre_dep,$version_dep){
+			try{
+				$db = $this->basedatos;
+			
+				$res 	= $this->_getIdVersionProyecto($nombre,$version);
+				$id  	= $res[0]->id;
+			
+				$res 	= $this->_getIdVersionProyecto($nombre_dep,$version_dep);
+				$id_dep	= $res[0]->id;
+			
+				#verifico que no exista
+				$consulta = ' 	select *						'.
+							'	from dependencia				'.
+							'	where version_proy = ? 			'.
+							'		  and version_proy_dep = ?	';
+				$row	= $this->basedatos->ExecuteQuery($consulta, array($id, $id_dep));
+				if (isset($row[0]->version_proy)){
+					return 0;
+				}
+	
+				#creo la dependencia
+				$consulta = ' insert into dependencia(version_proy, version_proy_dep) values (?,?) ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($id, $id_dep), false);
+				
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		
 	}
