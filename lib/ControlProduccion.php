@@ -21,7 +21,7 @@
 			$this->basedatos 	 	= new Database($ruta_configuracion, $ambiente);
 			
 			$this->basedatos->BeginTransaction();
-			$this->mensaje 				= Mensajes::getInstance();
+			$this->mensaje 			= Mensajes::getInstance();
 		}
 		
 		public function finalizar(){
