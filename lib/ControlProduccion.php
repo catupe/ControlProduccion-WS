@@ -113,7 +113,7 @@
 			}
 		}
 		
-		############# deploy automatico ####################################################################################3
+		############# deploy automatico ####################################################################################
 		
 		#Genera las entradas necesarias en la base para representar un deploy de un producto
 		# Entrada:
@@ -775,7 +775,7 @@
 			catch(Exception $e){
 				$this->error = 1;
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
-			}			
+			}
 		}
 		public function setDeploy($id, $obs){
 			try{
@@ -792,7 +792,7 @@
 			catch(Exception $e){
 				$this->error = 1;
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
-			}	
+			}
 		}
 		public function setProducto($id, $des, $activo){
 			try{		
@@ -860,7 +860,7 @@
 			catch(Exception $e){
 				$this->error = 1;
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
-			}	
+			}
 		}
 		public function getProductos($id){
 			try{
