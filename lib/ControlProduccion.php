@@ -38,10 +38,11 @@
 			}
 		}
 		
+		/*
 		private function _getBaseDatos(){
 			
 		}
-		
+		*/
 		public function _getIdVersionProyecto($proy,$version){
 			try{
 				$db = $this->basedatos;
