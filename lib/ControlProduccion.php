@@ -231,7 +231,7 @@
 		# -dato: dato binario o string
 		public function addDocumentoVersion($nombre_doc,$descripcion,$nombre_proy,$version_proy,$formato,$dato){
 			try{
-				$db = $this->_getBaseDatos();
+				//$db = $this->_getBaseDatos();
 			
 				$id_version_proy = $this->_getIdVersionProyecto($nombre_proy,$version_proy);
 				//return $res if ($$res{error});
@@ -242,7 +242,7 @@
 							'	from documento		'.
 							'	where nombre = ?	'.
 							'	and version_proy = ?';
-				$row	= $db->ExecuteQuery($consulta, array($id_version_proy));
+				$row	= $this->basedatos->ExecuteQuery($consulta, array($id_version_proy));
 				#si ya existe lo sustituyo
 				if (defined($row[0]->id)){
 					$id_documento = $row[0]->id;
