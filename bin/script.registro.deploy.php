@@ -219,22 +219,8 @@ sub perlpod{
 	return $docum;
 }
 ************************************************************************/
-sub getFecha{
-	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-	if ($min<10){
-		$min="0".$min;
-	}
-	if ($hour<10){
-		$hour="0".$hour;
-	}
-	if ($mday<10){
-		$mday="0".$mday;
-	}
-	$mon=+1;
-	if ($mon<10){
-		$mon="0".$mon;
-	}
+function getFecha(){
 	
-	return "[".$mday."/".$mon."/".(1900+$year)." ".$hour.":".$min."]";
+	return "[". date("d/m/Y H:i") . "]";
 
 }
