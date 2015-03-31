@@ -417,7 +417,7 @@
 		}
 		
 		# Crea una dependencia de un proyecto hacia otro
-		#Entrada:
+		# Entrada:
 		#	nombre proyecto dependiente
 		# 	version del proyecto dependiente
 		#	nombre del que depende
