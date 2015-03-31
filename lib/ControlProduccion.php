@@ -15,6 +15,8 @@
 		public function ControlProduccion($ruta_configuracion = "", $ambiente = ""){
 			
 			$this->configuracion 	= new Configuracion($ruta_configuracion, $ambiente);
+			$this->maxTuplas		= $this->configuracion->getDato('maxTuplas');
+			
 			$this->adm_usuario 		= new AdmUsuario($ruta_configuracion, $ambiente);
 			$this->basedatos 	 	= new Database($ruta_configuracion, $ambiente);
 			
@@ -231,9 +233,9 @@
 			try{
 				$db = $this->_getBaseDatos();
 			
-				$res = $this->_getIdVersionProyecto($nombre_proy,$version_proy);
+				$id_version_proy = $this->_getIdVersionProyecto($nombre_proy,$version_proy);
 				//return $res if ($$res{error});
-				$id_version_proy = $res->id;
+				//$id_version_proy = $res->id;
 			
 				#verifico si existe
 				$consulta = '	select id			'.
@@ -288,8 +290,8 @@
 			try{
 				$db = $this->basedatos;
 			
-				$res = $this->_getIdVersionProyecto($proyecto,$version);
-				$id_version_proy = $res[0]->id;
+				$id_version_proy = $this->_getIdVersionProyecto($proyecto,$version);
+				//$id_version_proy = $res[0]->id;
 			
 				#elimino las dependencias del proyecto principal de la tabla dependencias
 				$consulta = ' delete from dependencia 	'.
@@ -317,8 +319,8 @@
 			try{
 				$db = $this->basedatos;
 			
-				$res = $this->_getIdVersionProducto($producto,$version);
-				$id_ver_prod = $res[0]->id;
+				$id_ver_prod = $this->_getIdVersionProducto($producto,$version);
+				//$id_ver_prod = $res[0]->id;
 			
 				$fecha = $this->_getFecha;
 				#verifico que no exista el deploy, sino devuelvo el id
@@ -423,11 +425,11 @@
 			try{
 				$db = $this->basedatos;
 			
-				$res 	= $this->_getIdVersionProyecto($nombre,$version);
-				$id  	= $res[0]->id;
+				$id 	= $this->_getIdVersionProyecto($nombre,$version);
+				//$id  	= $res[0]->id;
 			
-				$res 	= $this->_getIdVersionProyecto($nombre_dep,$version_dep);
-				$id_dep	= $res[0]->id;
+				$id_dep 	= $this->_getIdVersionProyecto($nombre_dep,$version_dep);
+				//$id_dep	= $res[0]->id;
 			
 				#verifico que no exista
 				$consulta = ' 	select *						'.
@@ -450,5 +452,719 @@
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
 			}
 		}
+
+		#Agrega un proyecto a un producto
+		#Entrada:
+		#	nombre del producto
+		# 	version del producto
+		#	nombre del proyecto
+		# 	version del proyecto
+		#Salida:
+		# existia: 1 si ya existia, 0 sino
+		public function addProdProy($producto, $version, $proyecto, $version_proyecto){
+			try{
+				$db = $this->basedatos;
+			
+				$id_prod = $this->_getIdVersionProducto($producto,$version);
+				//$id_prod = $res[0]->id;
+			
+				$id_proy= $this->_getIdVersionProyecto($proyecto,$version_proyecto);
+				//return $res if ($$res{error});
+				//$id_proy = $res[0]->id;
+			
+				#verifico que no exista
+				$consulta = ' select *					 '.
+							' from version_prod_proy	 '.
+							' where version_proy = ?	 '.
+							'		and version_prod = ? ';
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id_proy, $id_prod));
+				
+				$salida = new stdClass();
+				$salida->existia = 0;
+				
+				if (isset($row[0]->version_proy)){
+					$salida->existia = 1;
+					return $salida;
+				}
+
+				#la creo
+				$consulta = ' insert into version_prod_proy (version_prod, version_proy) values (?,?) ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($id_prod, $id_proy), false);
+				
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		# Agrega una version del proyecto si no existe
+		#Entrada:
+		# - nombre del proyecto
+		# - version del proyecto
+		#Salida:
+		# -id
+		public function addVersionProyecto($proyecto, $version){
+			try{
+				$db = $this->basedatos;
+			
+				$id_proy = $this->_getIdProyecto($proyecto);
+				
+				$consulta = ' 	select id			'.
+							'	from version_proy	'.
+							'	where proyecto = ?	'.
+							'	and version = ?		';	
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id_proy, $version));
+				
+				#si ya existe retorno
+				if (isset($row[0]->id)){
+					return $row[0]->id;
+				}
+			
+				//my $id_version_proy=$self->_getNextNumerador("version_proy");
+			
+				$consulta = ' insert into version_proy (id, proyecto, version) values (?,?,?) ';
+				$id_version_proy = $this->basedatos->ExecuteNonQuery($consulta, array($id_version_proy, $id_proy, $version), true);
+				
+				return $id_version_proy;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		# Agrega una version de un producto si no existe
+		#Entrada:
+		#	-nombre producto
+		#	-version del producto
+		#Salida:
+		# 	-id
+		public function addVersionProducto($producto,$version){
+			try{
+						
+				$id_prod= $this->_getIdProducto($producto);
+			
+				$consulta = ' 	select id				'.
+							'	from version_prod		'.
+							'	where producto = ?		'.
+							'		  and version = ? 	';
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id_prod, $version));
+				
+				if (isset($row[0]->id)){
+					return $row[0]->id;
+				}
+			
+				//my $id_version_prod=$self->_getNextNumerador("version_prod");
+			
+				$consulta = ' insert into version_prod (id, producto, version) values (?,?,?) ';
+				$id_version_prod = $this->basedatos->ExecuteNonQuery($consulta, array($id_version_prod, $id_prod, $version), true);
+				
+				return $id_version_prod;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
 		
+		public function getDocumentos($id,$nombre, $version_proy){
+			try{
+
+				$where = "";
+				$valores = array();
+				if (isset($id) and ($id != "")){
+					if (!(preg_match('/^\d+$/', $id))){
+						$mensaje = $this->mensaje->getMensaje('005', array());
+						throw new Exception($mensaje , '005');					
+					}
+			
+					$where .= ' and v.id = ? ';
+					$valores[] = $id;
+				}
+				if (isset($nombre) and ($nombre != "")){
+					$where .= ' and upper(d.nombre) like upper(?) ';
+					$valores[] = "%".$nombre."%";
+				}
+				if (isset($version_proy) and ($version_proy != "")){
+					$where .= ' and v.version = ? ';
+					$valores[] = $version_proy;
+				}
+			
+				$consulta = ' 	select 	count(*)	as cantidad		'.
+							'	from documento d, version_proy v	'.
+							'	where d.version_proy = v.id 		';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				
+				$cant = $row[0]->cantidad;
+				$msg = "";
+				if ($cant > $this->maxTuplas){
+					//$msg=$MENSAJE_ERROR{"S006"};
+					//$msg=~s/CANT/$self->{maxTuplas}/;
+					$msg = $this->mensaje->getMensaje('006', array('CANT'=>$this->maxTuplas));
+				}
+			
+				$consulta = '	select first $self->{maxTuplas}		'.
+							'		   	d.id,						'.
+							'			d.nombre,					'.
+							'			d.descripcion,				'.
+							'			d.fecha_creacion,			'.
+							'			d.formato,					'.
+							'			v.version					'.
+							'	from documento d, version_proy v	'.
+							'	where d.version_proy = v.id			';
+
+				$order = 	' order by d.nombre desc ';
+				$row = $this->basedatos->ExecuteQuery($consulta.$where.$order, $valores);
+				
+				$salida;
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k=>$data){
+					$salida[$data->id] = $data;
+				}
+			
+				$sal = new stdClass();
+				$sal->docs = $salida;
+				$sal->msg  = $msg;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}	
+		}
+		public function getDocumento($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = '	select 	d.nombre,								'.
+							'			d.descripcion,							'.
+							'			d.formato,								'.
+							'			d.dato,									'.
+							'			p.nombre proyecto,						'.
+							'			v.version								'.
+							'	from documento d, proyecto p, version_proy v	'.
+							'	where p.id=v.proyecto							'.
+							'			and d.version_proy=v.id					'.
+							'			and d.id=?								';
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = new stdClass();
+				$salida->doc = $row[0];
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getDeploy($id){		
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = '	select 	d.fecha,							'.
+							'			d.observaciones,					'.
+							'			v.version,							'.
+							'			p.nombre producto					'.
+							'	from deploy d, version_prod v, producto p	'.
+							'	where v.producto = p.id						'.
+							'			and d.version_prod = v.id			'.
+							'			and d.id = ? 						';
+
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = new stdClass();
+				$salida->deploy = $row[0];
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getProducto($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+		
+				$consulta = ' 	select 	nombre,	descripcion, activo '.
+							'	from producto						'.
+							'	where id = ? 						';
+
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = new stdClass();
+				$salida->producto = $row[0];
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getProyecto($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = ' 	select 	nombre,	descripcion		'.
+							'	from proyecto					'.
+							'	where id = ? 					';
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = new stdClass();
+				$salida->proyecto = $row[0];
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getVersionProyecto($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = '	select 	version, descripcion	'.
+							'	from version_proy				'.
+							'	where id = ? 					';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = new stdClass();
+				$salida->version_proy = $row[0];
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getVersionProducto ($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = '	select 	version, descripcion	'.
+							'	from version_prod				'.
+							'	where id = ? 					';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = new stdClass();
+				$salida->version_prod = $row[0];
+				
+				return $salida;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}			
+		}
+		public function setDeploy($id, $obs){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = ' update deploy set observaciones=? where id=? ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($obs, id), false);
+				
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}	
+		}
+		public function setProducto($id, $des, $activo){
+			try{		
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = ' update producto set descripcion=?, activo=? where id=? ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($des, $activo, $id), false);
+				
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function setProyecto($id, $des){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = ' update proyecto set descripcion=? where id=? ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($des,$id), false);
+				
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function setVersionProyecto($id, $des){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = ' update version_proy set descripcion=? where id=? ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($des,$id), false);
+			
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function setVersionProducto($id, $des){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+					
+				$consulta = ' update version_prod set descripcion=? where id=? ';
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($des,$id), false);
+				
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}	
+		}
+		public function getProductos($id){
+			try{
+				$where="";
+				$valores = array();
+				
+				if (isset($id) and ($id != "")){
+					if (!(preg_match('/^\d+$/', $id))){
+						$mensaje = $this->mensaje->getMensaje('005', array());
+						throw new Exception($mensaje , '005');
+					}
+			
+					$where .= ' and producto.id=? ';
+					$valores[] = $id;
+				}
+			
+				$consulta = ' 	select 	id,				'.
+							'			nombre,			'.			
+							'			descripcion,	'.
+							'			fecha_creacion,	'.
+							'			activo			'.
+							'	from producto			'.
+							'	where 1=1 				';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				
+				$salida = array();
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$salida[$dato->id] = $dato;
+				}
+			
+				$sal = new stdClass();
+				$sal->productos = $salida;
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getDeploys($desde, $hasta){
+			try{	
+				$where = "";
+				$valores = array();
+				
+				if (isset($desde) and ($desde != "")){
+					$where .= ' and to_char(d.fecha,"%Y%m%d")>=? ';
+					$valores[] = $desde;
+				}
+				if (isset($hasta) and ($hasta != "")){
+					$where .= ' and to_char(d.fecha,"%Y%m%d")<=? ';
+					$valores[] = $hasta;
+				}
+			
+				$consulta = '	select 	v.id,								'.
+							'			p.nombre producto,					'.
+							'			v.version version,					'.
+							'			d.observaciones,					'.
+							'			d.fecha,							'.
+							'			d.id id_deploy,						'.
+							'			d.usuario							'.
+							'	from deploy d, version_prod v, producto p	'.
+							'	where d.version_prod=v.id					'.
+							'		  and v.producto=p.id 					';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				
+				$salida;
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$salida[$dato->id] = $dato;
+				}
+			
+				$sal = new stdClass();
+				$sal->deploys = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getProyectos($id){
+			try{
+
+				$where = "";
+				$valores = array();
+				
+				if (isset($id) and ($id != "")){
+					if (!(preg_match('/^\d+$/', $id))){
+						$mensaje = $this->mensaje->getMensaje('005', array());
+						throw new Exception($mensaje , '005');
+					}
+			
+					$where .= ' and d.id=? ';
+					$valores[] = $id;
+				}
+			
+				$consulta = '	select 	id,				'.
+							'			nombre,			'.
+							'			descripcion,	'.
+							'			fecha_creacion	'.
+							'	from proyecto			'.
+							'	where 1=1 				';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				
+				$salida;
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$salida[$dato->id] = $dato;
+				}
+			
+				$sal = new stdClass();
+				$sal->proyectos = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getVersionesProyecto($id){
+			try{
+				
+				$where = "";
+				$valores = array();
+				
+				if (isset($id) and ($id != "")){
+					if (!(preg_match('/^\d+$/', $id))){
+						$mensaje = $this->mensaje->getMensaje('005', array());
+						throw new Exception($mensaje , '005');
+					}
+			
+					$where .= ' and p.id=? ';
+					$valores[] = $id;
+				}
+			
+				$consulta = '	select 	v.id,					'.
+							'			v.version,				'.
+							'			v.fecha_creacion,		'.
+							'			v.descripcion,			'.
+							'			p.nombre				'.
+							'	from version_proy v, proyecto p	'.
+							'	where v.proyecto = p.id			';
+				
+				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				
+				$salida;
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					#obtengo las dependencias
+					$consulta2 = ' 	select v.id id_version,p.nombre,v.descripcion,v.version	'.
+								 '	from proyecto p, version_proy v, dependencia d			'.
+								 '	where d.version_proy = ?								'.				
+								 '			and d.version_proy_dep=v.id						'.
+								 '			and p.id=v.proyecto								';
+					
+					$row2 = $this->basedatos->ExecuteQuery($consulta2, array($dato->id));
+					
+					$deps;
+					//while (my $row2=$sth2->fetchrow_hashref){
+					foreach($row2 as $k2 => $dato2){
+						$deps[$dato2->id_version] = $dato2;
+					}
+					$dato['dependencias'] = $deps;
+			
+					$salida[$dato->id] = $dato;
+				}
+			
+				$sal = new stdClass();
+				$sal->versiones = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getVersiones($id){
+			try{
+				$consulta = ' 	select 	*			'.
+							'	from version_proy	';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta, array());
+				
+				$salida;
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$salida[$dato->id] = $dato;
+				}
+			
+				$sal = new stdClass();
+				$sal->versiones = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getVersionesProducto($id){
+			try{
+				$where = "";
+				$valores = array();
+				
+				if (isset($id) and ($id != "")){
+					if (!(preg_match('/^\d+$/', $id))){
+						$mensaje = $this->mensaje->getMensaje('005', array());
+						throw new Exception($mensaje , '005');
+					}
+			
+					$where .= ' and p.id=? ';
+					$valores[] = $id;
+				}
+			
+				$consulta = '	select 	v.id,					'.
+							'			v.version,				'.
+							'			v.descripcion,			'.
+							'			v.fecha_creacion,		'.
+							'			p.nombre				'.
+							'	from version_prod v, producto p	'.
+							'	where v.producto = p.id			';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				
+				$salida = array();
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach ($row as $k => $dato){
+					$salida[$dato->id] = $dato;
+				}
+			
+				$sal = new stdClass();
+				$sal->versiones = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function delDocumento($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				$consulta = '	delete documento	'.
+							'	where id = ?		';
+					
+				$row = $this->basedatos->ExecuteNonQuery($consulta, array($id), false);
+				
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		#devuelve las versiones de los productos que estan en produccion
+		public function getProduccion(){
+			try{
+				
+				#ultimos deploys de poductos activos
+				$consulta = '	select p.nombre, max(d.fecha) fecha			'.
+							'	from producto p, version_prod v, deploy d	'.
+							'	where p.id=v.producto						'.
+							'			and v.id=d.version_prod				'.
+							'			and p.activo=1						'.
+							'	group by 1									';
+				
+				$row = $this->basedatos->ExecuteQuery($consulta, array());
+				
+				$salida = array();
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$consulta2 = '	select d.id id_deploy, d.observaciones, d.fecha,d.usuario,						'.
+								 '	p.nombre, p.descripcion descripcion_p, v.version, v.descripcion descripcion_v,	'.
+								 '	v.id id_version																	'.
+								 '	from deploy d, version_prod v, producto p										'.
+								 '	where d.version_prod=v.id														'.
+								 '			and p.id=v.producto														'.
+								 '			and d.fecha=?															'.
+								 '			and p.nombre=?															';	
+					
+					$row2 = $this->basedatos->ExecuteQuery($consulta2, array($dato->fecha, $dato->nombre));
+					
+					$salida[$row2[0]->id_deploy]=$row2[0];
+				}
+				$sal = new stdClass();
+				$sal->produccion = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}	
+		}
 	}
