@@ -1167,4 +1167,192 @@
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
 			}	
 		}
+		#devuelve los proyectos principales y sus dependencias de una version de producto
+		public function getProyectosPrincipales($id){
+			try{
+				if (!(preg_match('/^\d+$/', $id))){
+					$mensaje = $this->mensaje->getMensaje('005', array());
+					throw new Exception($mensaje , '005');
+				}
+			
+				#obtengo los ids de los proyectos principales
+				$consulta = ' 	select vpr.id id_ver_proyecto,pr.nombre,vpr.descripcion,vpr.version	'.
+							'	from proyecto pr, version_prod_proy vpp,							'.
+							'		 version_proy vpr												'.
+							'	where vpp.version_prod=?											'.
+							'			and vpr.id=vpp.version_proy									'.
+							'			and pr.id=vpr.proyecto										';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+				
+				$salida = array();
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					#obtengo las dependencias
+					$consulta2 = '	select v.id id_version,p.nombre,v.descripcion,v.version	'.
+								 '	from proyecto p, version_proy v, dependencia d			'.
+								 '	where d.version_proy=?									'.
+								 '			and d.version_proy_dep=v.id						'.
+								 '			and p.id=v.proyecto								';
+					
+					$row2 = $this->basedatos->ExecuteQuery($consulta2, array($dato->id_ver_proyecto));
+					
+					$deps = array();
+					//while (my $row2=$sth2->fetchrow_hashref){
+					foreach($row2 as $k => $dato2){
+						$deps[$dato2->id_version] = $dato2;
+					}
+					$dato["dependencias"] = $deps;
+					
+					$salida[$dato->id_ver_proyecto] = $dato;
+				}
+				
+				$sal = new stdClass();
+				$sal->principales = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function setDocumentoVersion($id,$nombre,$descripcion,$formato,$dato){
+			try{
+				
+				$consulta = "";
+				
+				$consulta = '	update documento				'.
+							'	set nombre=?, descripcion=?		'.
+							'	where id = ?					';
+				
+				$sth = $this->basedatos->ExecuteNonQuery($consulta, array($nombre,$descripcion,$id), true);
+				
+				if (isset($formato) and $formato != ""){
+					$consulta = '	select nombre, descripcion, version_proy	'.
+								'	from documento								'.
+								'	where id = ? 								';
+					$row = $this->basedatos->ExecuteQuery($consulta, array($id));
+					
+					$nombre_o		= $row[0]->nombre;
+					$descripcion_o	= $row[0]->descripcion;
+					$version_proy_o	= $row[0]->version_proy;
+			
+					#lo elimino
+					$consulta = '	delete from documento		'.
+								'	where id = ?				';
+					$sth = $this->basedatos->ExecuteNonQuery($consulta, array($id), false);
+					
+					#creo el documento nuevamente con mismo id
+					$consulta = ' insert into documento (id, nombre,descripcion, formato,version_proy, dato) values (?,?,?,?,?,?) ';
+					$sth = $this->basedatos->ExecuteNonQuery($consulta, array($id,"nom","des","for",$version_proy_o,$dato), true);
+					
+					$consulta = ' update documento set nombre=?, descripcion=?, formato=? where id=? ';
+					$sth = $this->basedatos->ExecuteNonQuery($consulta, array($nombre_o,$descripcion_o,$formato,$id), true);
+					//$sth = $db->ejecutarSQL($consulta,$nombre_o,$descripcion_o,$formato,$id)															
+				}
+				return 0;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getPlantillas($id){
+			try{
+				
+				$consulta = '	select 	*		'.
+							'	from plantilla	';
+				$row = $this->basedatos->ExecuteQuery($consulta, array());
+					
+				$salida = array();
+				$key = 'a';
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$salida[$key] = $dato;
+					$key++;
+				}
+			
+				$sal = new stdClass();
+				$sal->plantillas = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getInstalaciones($prefijo){
+			try{
+				
+				$prefijo = "%".$prefijo."-%";
+			
+				$consulta = '	select 	id,					'.
+							'			nombre,				'.
+							'			descripcion,		'.
+							'			fecha_creacion,		'.
+							'			activo				'.
+							'	from producto				'.
+							'	where nombre like ? 		';
+					
+				$row = $this->basedatos->ExecuteQuery($consulta, array($prefijo));
+				
+				$salida = array();
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$salida[$dato->id] = $dato;
+				}
+				
+				$sal = new stdClass();
+				$sal->instalaciones = $salida;
+				
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
+		public function getInstalacionesProduccion($prefijo){
+			try{
+				
+				$prefijo="%".$prefijo."-%";
+			
+				#ultimos deploys de poductos activos
+				$consulta = '	select p.nombre, max(d.fecha) fecha			'.
+							'	from producto p, version_prod v, deploy d	'.
+							'	where p.id=v.producto						'.
+							'			and v.id=d.version_prod				'.
+							'			and p.activo=1						'.
+							'			and p.nombre like ?					'.
+							'	group by 1									';
+				
+				$row = $this->basedatos->ExecuteQuery($consulta, array($prefijo));
+				
+				$salida = array();
+				//while (my $row=$sth->fetchrow_hashref){
+				foreach($row as $k => $dato){
+					$consulta2 = '	select d.id id_deploy, d.observaciones, d.fecha,d.usuario,								'.
+								 '		   p.nombre, p.descripcion descripcion_p, v.version, v.descripcion descripcion_v,	'.
+								 '		   v.id id_version																	'.
+								 '	from deploy d, version_prod v, producto p												'.
+								 '	where d.version_prod=v.id																'.
+								 '			and p.id=v.producto																'.
+								 '			and d.fecha=?																	'.
+								 '			and p.nombre=?																 	';
+					
+					$row2 = $this->basedatos->ExecuteQuery($consulta2, array($dato->fecha, $dato->nombre));
+					$salida[$row2[0]->id_deploy] = $row2[0];
+				}
+				
+				$sal = new stdClass();
+				$sal->instalaciones = $salida;
+				return $sal;
+			}
+			catch(Exception $e){
+				$this->error = 1;
+				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
+			}
+		}
 	}
