@@ -200,7 +200,7 @@
 						$id_ver_dep = $res->id;
 							
 						if (isset($doc) and $doc != ""){
-						#agrego la documentacion de la version del proyecto principal, si exsiste lo actualiza
+							#agrego la documentacion de la version del proyecto principal, si exsiste lo actualiza
 							$nombre		="Auto-Doc:".$dep;
 							$descripcion="Auto-Doc:".$dep;
 							$res		= $this->addDocumentoVersion($nombre,$descripcion,$dep,$ver,$for,$doc);
