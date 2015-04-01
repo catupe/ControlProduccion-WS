@@ -1,9 +1,10 @@
 <?php
 
-	include_once 'AdmUsuario.php';
+	//include_once 'AdmUsuario.php';
 	include_once 'MensajesControlProduccion.php';
-	include_once '../AdmUsuario/AdmUsuario.php';
-	include_once '../Web-Nucleo/Configuracion.php';
+	include_once '../../AdmUsuario/AdmUsuario.php';
+	include_once '../../Web-Nucleo/Configuracion.php';
+	include_once '../../Web-Nucleo/Database.php';
 	
 	
 	class ControlProudccion{
