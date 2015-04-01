@@ -963,7 +963,7 @@
 						throw new Exception($mensaje , '005');
 					}
 			
-					$where .= ' and d.id=? ';
+					$where .= ' and p.id=? ';
 					$valores[] = $id;
 				}
 			
