@@ -3,11 +3,11 @@
 	//include_once 'AdmUsuario.php';
 	include_once 'MensajesControlProduccion.php';
 	include_once '../../AdmUsuario/AdmUsuario.php';
-	include_once '../../Web-Nucleo/Configuracion.php';
-	include_once '../../Web-Nucleo/Database.php';
+	include_once '../../Web.Nucleo/lib/Configuracion.php';
+	include_once '../../Web.Nucleo/lib/Database.php';
 	
 	
-	class ControlProudccion{
+	class ControlProduccion{
 		
 		var $configuracion 	= null;
 		var $adm_usuario 	= null;
@@ -22,7 +22,7 @@
 			$this->basedatos 	 	= new Database($ruta_configuracion, $ambiente);
 			
 			$this->basedatos->BeginTransaction();
-			$this->mensaje 			= Mensajes::getInstance();
+			$this->mensaje 			= MensajesControlProduccion::getInstance();
 		}
 		
 		public function finalizar(){
@@ -55,7 +55,6 @@
 							'		and vp.proyecto = p.id		';
 			
 				$res	= $this->basedatos->ExecuteQuery($consulta, array($version, $proy));
-				$row	= $db->ejecutarSQL($consulta, $version, $proy);
 				
 				if(!isset($res[0]->id)){
 					$mensaje = $this->mensaje->getMensaje('001', array());
@@ -77,7 +76,7 @@
 				$consulta= ' select id from proyecto where nombre = ? ';
 				$row	= $this->basedatos->ExecuteQuery($consulta, array($proy));
 				
-				if(!isset($res[0]->id)){
+				if(!isset($row[0]->id)){
 					$mensaje = $this->mensaje->getMensaje('003', array());
 					throw new Exception($mensaje , '003');
 				}
@@ -100,7 +99,7 @@
 							'		  and p.nombre = ?				'.
 							'		  and vp.producto = p.id		';
 				
-				$row	= $this->basedatos->ExecuteQuery($consulta, array($version, $proy));
+				$row	= $this->basedatos->ExecuteQuery($consulta, array($version, $prod));
 				
 				if (!isset($row[0]->id)){
 					$mensaje = $this->mensaje->getMensaje('002', array());
@@ -584,7 +583,7 @@
 					$valores[] = $id;
 				}
 				if (isset($nombre) and ($nombre != "")){
-					$where .= ' and upper(d.nombre) like upper(?) ';
+					$where .= ' and upper(d.nombre) like upper(%?%) ';
 					$valores[] = "%".$nombre."%";
 				}
 				if (isset($version_proy) and ($version_proy != "")){
@@ -597,6 +596,8 @@
 							'	where d.version_proy = v.id 		';
 					
 				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
+				var_dump($row);
+				print "################\n";
 				
 				$cant = $row[0]->cantidad;
 				$msg = "";
@@ -606,7 +607,7 @@
 					$msg = $this->mensaje->getMensaje('006', array('CANT'=>$this->maxTuplas));
 				}
 			
-				$consulta = '	select first $self->{maxTuplas}		'.
+				$consulta = '	select first ' . $this->maxTuplas   .
 							'		   	d.id,						'.
 							'			d.nombre,					'.
 							'			d.descripcion,				'.
@@ -617,6 +618,9 @@
 							'	where d.version_proy = v.id			';
 
 				$order = 	' order by d.nombre desc ';
+				
+				print 	$consulta.$where.$order . "\n";
+				var_dump($valores);
 				$row = $this->basedatos->ExecuteQuery($consulta.$where.$order, $valores);
 				
 				$salida;
@@ -1012,9 +1016,11 @@
 							'	from version_proy v, proyecto p	'.
 							'	where v.proyecto = p.id			';
 				
+				
 				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
 				
-				$salida;
+				
+				$salida = array();
 				//while (my $row=$sth->fetchrow_hashref){
 				foreach($row as $k => $dato){
 					#obtengo las dependencias
@@ -1031,7 +1037,7 @@
 					foreach($row2 as $k2 => $dato2){
 						$deps[$dato2->id_version] = $dato2;
 					}
-					$dato['dependencias'] = $deps;
+					$dato->dependencias = $deps;
 			
 					$salida[$dato->id] = $dato;
 				}
