@@ -908,17 +908,17 @@
 				throw new Exception( $e->getMessage( ) , (int)$e->getCode( ) );
 			}
 		}
-		public function getDeploys($desde, $hasta){
+		public function getDeploys($desde = "", $hasta = ""){
 			try{	
 				$where = "";
 				$valores = array();
 				
 				if (isset($desde) and ($desde != "")){
-					$where .= ' and to_char(d.fecha,"%Y%m%d")>=? ';
+					$where .= ' and to_char(d.fecha,"%Y%m%d")>= ? ';
 					$valores[] = $desde;
 				}
 				if (isset($hasta) and ($hasta != "")){
-					$where .= ' and to_char(d.fecha,"%Y%m%d")<=? ';
+					$where .= ' and to_char(d.fecha,"%Y%m%d")<= ? ';
 					$valores[] = $hasta;
 				}
 			
@@ -932,7 +932,7 @@
 							'	from deploy d, version_prod v, producto p	'.
 							'	where d.version_prod=v.id					'.
 							'		  and v.producto=p.id 					';
-					
+				
 				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
 				
 				$salida;
@@ -971,7 +971,7 @@
 							'			nombre,			'.
 							'			descripcion,	'.
 							'			fecha_creacion	'.
-							'	from proyecto			'.
+							'	from proyecto	p		'.
 							'	where 1=1 				';
 					
 				$row = $this->basedatos->ExecuteQuery($consulta.$where, $valores);
@@ -1210,7 +1210,7 @@
 					foreach($row2 as $k => $dato2){
 						$deps[$dato2->id_version] = $dato2;
 					}
-					$dato["dependencias"] = $deps;
+					$dato->dependencias = $deps;
 					
 					$salida[$dato->id_ver_proyecto] = $dato;
 				}
